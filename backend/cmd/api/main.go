@@ -65,11 +65,14 @@ func main() {
 	library.Post("/", h.CreateLibrary)
 	library.Patch("/:id", h.UpdateLibrary)
 	library.Delete("/:id", h.DeleteLibrary)
+	library.Post("/:id/scan", h.ScanLibrary)
 
 	series := authenticated.Group("/series")
 	series.Get("/", h.GetSeries)
 	series.Get("/:id", h.GetSeriesByID)
-	series.Post("/scan", h.ScanLibrary)
+
+	scans := authenticated.Group("/scans")
+	scans.Get("/:scanId", h.GetScanStatus)
 
 	reader := authenticated.Group("/reader")
 	reader.Get("/chapter/:id", h.GetChapter)

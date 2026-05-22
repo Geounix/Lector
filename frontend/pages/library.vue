@@ -29,7 +29,36 @@
 
     <div v-else>
       <div v-for="library in libraries" :key="library.id" class="library-section">
-        <h2 class="section-title">{{ library.name }}</h2>
+        <div class="section-header">
+          <h2 class="section-title">{{ library.name }}</h2>
+          <div class="section-actions">
+            <button
+              class="btn btn-icon"
+              :class="{ scanning: scanningLibraries[library.id] }"
+              @click="scanLibrary(library.id)"
+              :disabled="scanningLibraries[library.id]"
+              title="Escanear biblioteca"
+            >
+              <span v-if="scanningLibraries[library.id]" class="spinner">⟳</span>
+              <span v-else>🔄</span>
+            </button>
+            <button
+              class="btn btn-icon"
+              @click="editLibrary(library)"
+              title="Editar biblioteca"
+            >
+              ✏️
+            </button>
+            <button
+              class="btn btn-icon btn-danger"
+              @click="confirmDeleteLibrary(library)"
+              title="Eliminar biblioteca"
+            >
+              🗑️
+            </button>
+          </div>
+        </div>
+
         <div v-if="library.series && library.series.length > 0" class="grid grid-4">
           <div
             v-for="series in library.series"
@@ -59,8 +88,13 @@
         </div>
         <div v-else class="empty-section">
           <p>No hay comics en esta biblioteca</p>
-          <button class="btn btn-secondary" @click="scanLibrary(library.id)">
-            Escanear ahora
+          <button
+            class="btn btn-secondary"
+            @click="scanLibrary(library.id)"
+            :disabled="scanningLibraries[library.id]"
+          >
+            <span v-if="scanningLibraries[library.id]">Escaneando...</span>
+            <span v-else>Escanear ahora</span>
           </button>
         </div>
       </div>
@@ -79,11 +113,25 @@
       @close="showAddLibrary = false"
       @created="handleLibraryCreated"
     />
+
+    <EditLibraryModal
+      v-if="showEditLibrary"
+      :library="libraryToEdit"
+      @close="showEditLibrary = false"
+      @updated="handleLibraryUpdated"
+    />
+
+    <DeleteLibraryModal
+      v-if="showDeleteLibrary"
+      :library="libraryToDelete"
+      @close="showDeleteLibrary = false"
+      @deleted="handleLibraryDeleted"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -93,6 +141,11 @@ const searchQuery = ref('')
 const loading = ref(true)
 const error = ref('')
 const showAddLibrary = ref(false)
+const showEditLibrary = ref(false)
+const showDeleteLibrary = ref(false)
+const libraryToEdit = ref<any>(null)
+const libraryToDelete = ref<any>(null)
+const scanningLibraries = reactive<Record<number, boolean>>({})
 
 onMounted(() => {
   fetchLibrary()
@@ -142,24 +195,96 @@ function openSeries(series: any) {
 }
 
 async function scanLibrary(libraryId: number) {
+  if (scanningLibraries[libraryId]) return
+
+  scanningLibraries[libraryId] = true
+
   try {
     const token = localStorage.getItem('token')
-    await fetch('/api/v1/series/scan', {
+    const response = await fetch(`/api/v1/library/${libraryId}/scan`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ libraryId })
+      }
     })
+
+    if (!response.ok) {
+      throw new Error('Error al iniciar escaneo')
+    }
+
+    const data = await response.json()
+    const scanId = data.scan_id
+
+    await pollScanStatus(scanId)
+
     await fetchLibrary()
   } catch (err) {
     console.error('Scan failed:', err)
+    alert('Error al escanear la biblioteca')
+  } finally {
+    scanningLibraries[libraryId] = false
   }
+}
+
+async function pollScanStatus(scanId: string) {
+  const maxAttempts = 30
+  const interval = 2000
+
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(resolve => setTimeout(resolve, interval))
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/v1/scans/${scanId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (!response.ok) continue
+
+      const status = await response.json()
+
+      if (status.status === 'completed') {
+        console.log(`Scan completed: ${status.chapters_found} chapters found`)
+        return
+      }
+
+      if (status.status === 'failed') {
+        console.error('Scan failed:', status.error_message)
+        return
+      }
+    } catch (err) {
+      console.error('Error polling scan status:', err)
+    }
+  }
+
+  console.warn('Scan polling timeout')
+}
+
+function editLibrary(library: any) {
+  libraryToEdit.value = library
+  showEditLibrary.value = true
+}
+
+function confirmDeleteLibrary(library: any) {
+  libraryToDelete.value = library
+  showDeleteLibrary.value = true
 }
 
 function handleLibraryCreated() {
   showAddLibrary.value = false
+  fetchLibrary()
+}
+
+function handleLibraryUpdated() {
+  showEditLibrary.value = false
+  libraryToEdit.value = null
+  fetchLibrary()
+}
+
+function handleLibraryDeleted() {
+  showDeleteLibrary.value = false
+  libraryToDelete.value = null
   fetchLibrary()
 }
 </script>
@@ -199,10 +324,54 @@ function handleLibraryCreated() {
   color: var(--text-secondary);
 }
 
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
 .section-title {
   font-size: 1.25rem;
-  margin-bottom: 1rem;
   color: var(--text-secondary);
+}
+
+.section-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-icon {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-icon:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent);
+}
+
+.btn-icon.scanning {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-icon.btn-danger:hover {
+  border-color: var(--error);
+}
+
+.spinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .series-card {

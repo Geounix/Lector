@@ -198,11 +198,62 @@ func (h *Handler) CreateLibrary(c *fiber.Ctx) error {
 }
 
 func (h *Handler) UpdateLibrary(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "update library endpoint - todo"})
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid library ID",
+		})
+	}
+
+	type req struct {
+		Name         string `json:"name"`
+		Type         string `json:"type"`
+		Path         string `json:"path"`
+		WatchEnabled bool   `json:"watch_enabled"`
+		ScanInterval int    `json:"scan_interval"`
+	}
+
+	var body req
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	ctx := context.Background()
+	library, err := h.svc.UpdateLibrary(ctx, int64(id), body.Name, body.Type, body.Path, body.WatchEnabled, body.ScanInterval)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update library",
+		})
+	}
+
+	if library == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Library not found",
+		})
+	}
+
+	return c.JSON(library)
 }
 
 func (h *Handler) DeleteLibrary(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "delete library endpoint - todo"})
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid library ID",
+		})
+	}
+
+	ctx := context.Background()
+	err = h.svc.DeleteLibrary(ctx, int64(id))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to delete library",
+		})
+	}
+
+	return c.JSON(fiber.Map{"message": "Library deleted"})
 }
 
 func (h *Handler) GetSeries(c *fiber.Ctx) error {
@@ -222,14 +273,109 @@ func (h *Handler) GetSeries(c *fiber.Ctx) error {
 }
 
 func (h *Handler) GetSeriesByID(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "get series by id endpoint - todo"})
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid series ID",
+		})
+	}
+
+	ctx := context.Background()
+	series, volumes, chapters, err := h.svc.GetSeriesByID(ctx, int64(id))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get series",
+		})
+	}
+
+	if series == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Series not found",
+		})
+	}
+
+	volumesMap := make(map[int64][]services.Chapter)
+	for _, ch := range chapters {
+		volumesMap[ch.VolumeID] = append(volumesMap[ch.VolumeID], ch)
+	}
+
+	var volumesJSON []fiber.Map
+	for _, v := range volumes {
+		vJSON := fiber.Map{
+			"id":       v.ID,
+			"number":   v.Number,
+			"title":    v.Title,
+			"chapters": volumesMap[v.ID],
+		}
+		volumesJSON = append(volumesJSON, vJSON)
+	}
+
+	return c.JSON(fiber.Map{
+		"id":             series.ID,
+		"library_id":      series.LibraryID,
+		"title":          series.Title,
+		"sort_title":     series.SortTitle,
+		"description":    series.Description,
+		"cover":          series.Cover,
+		"year":           series.Year,
+		"status":         series.Status,
+		"publisher":      series.Publisher,
+		"language":       series.Language,
+		"age_rating":     series.AgeRating,
+		"metadata_source": series.MetadataSource,
+		"created_at":     series.CreatedAt,
+		"updated_at":     series.UpdatedAt,
+		"volumes":        volumesJSON,
+	})
 }
 
 func (h *Handler) ScanLibrary(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid library ID",
+		})
+	}
+
+	userID := c.Locals("user_id").(int64)
+	ctx := context.Background()
+
+	scanID, err := h.svc.TriggerScan(ctx, int64(id), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to trigger scan",
+		})
+	}
+
 	return c.JSON(fiber.Map{
-		"message": "scan started",
+		"scan_id": scanID,
 		"status":  "queued",
 	})
+}
+
+func (h *Handler) GetScanStatus(c *fiber.Ctx) error {
+	scanID := c.Params("scanId")
+	if scanID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Scan ID is required",
+		})
+	}
+
+	ctx := context.Background()
+	status, err := h.svc.GetScanStatus(ctx, scanID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get scan status",
+		})
+	}
+
+	if status == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Scan not found",
+		})
+	}
+
+	return c.JSON(status)
 }
 
 func (h *Handler) GetChapter(c *fiber.Ctx) error {

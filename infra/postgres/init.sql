@@ -101,8 +101,20 @@ CREATE TABLE IF NOT EXISTS metadata (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_series_title ON series USING gin(to_tsvector('english', title));
-CREATE INDEX idx_chapter_hash ON chapter(hash);
-CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_reading_progress_user ON reading_progress(user_id);
 CREATE INDEX idx_reading_progress_chapter ON reading_progress(chapter_id);
+CREATE INDEX idx_scan_job_library ON scan_job(library_id);
+CREATE INDEX idx_scan_job_user ON scan_job(user_id);
+CREATE INDEX idx_scan_job_status ON scan_job(status);
+
+CREATE TABLE IF NOT EXISTS scan_job (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    library_id BIGINT REFERENCES library(id) ON DELETE CASCADE,
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    status VARCHAR(20) DEFAULT 'queued',
+    chapters_found INT DEFAULT 0,
+    error_message TEXT,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

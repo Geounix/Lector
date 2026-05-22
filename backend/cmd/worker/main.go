@@ -30,6 +30,7 @@ func main() {
 	cleanupWorker := workers.NewCleanupWorker(repo)
 
 	go scannerWorker.Start()
+	go scannerWorker.SubscribeToScans()
 	go thumbnailWorker.Start()
 	go cleanupWorker.Start()
 

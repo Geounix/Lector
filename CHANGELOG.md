@@ -408,3 +408,61 @@ lector-comics/
 El frontend NO hace build en Docker, corre en modo dev con `npm run dev`
 Esto permite desarrollo rapido pero NO es recomendado para produccion
 Para produccion futura: agregar build step y servir archivos estaticos
+
+## v0.2.14 - 2026-05-22
+
+### Added
+- Tabla `scan_job` en PostgreSQL para tracking de scans asíncronos
+  - Campos: id (UUID), library_id, user_id, status, chapters_found, error_message, started_at, completed_at
+  - Índices para library_id, user_id, status
+
+- Endpoints API nuevos:
+  - `PATCH /api/v1/library/:id` - Actualizar biblioteca
+  - `DELETE /api/v1/library/:id` - Eliminar biblioteca
+  - `POST /api/v1/library/:id/scan` - Iniciar scan asíncrono (retorna scan_id)
+  - `GET /api/v1/scans/:scanId` - Consultar estado de scan
+
+- Sistema de scan asíncrono con Redis pub/sub:
+  - Worker se suscribe al canal `lector:scan_library`
+  - API publica mensaje con library_id y scan_id
+  - Worker recibe, procesa y actualiza estado en BD
+
+- Frontend: Modales para Editar/Eliminar biblioteca
+
+### Implemented Services
+- **UpdateLibrary**: Actualiza name, type, path, watch_enabled, scan_interval
+- **DeleteLibrary**: Elimina biblioteca (CASCADE elimina series/chapters)
+- **GetSeriesByID**: Retorna serie + volumes + chapters
+- **TriggerScan**: Crea scan_job y publica en Redis
+- **GetScanStatus**: Consulta estado de scan por UUID
+
+### Changed Files
+- **infra/postgres/init.sql**: Nueva tabla `scan_job` con índices
+- **backend/internal/repository/repository.go**:
+  - +CreateScanJob, GetScanJob, UpdateScanJob, UpdateScanJobStarted, PublishScanCommand
+- **backend/internal/services/services.go**:
+  - +UpdateLibrary, DeleteLibrary, GetSeriesByID, GetVolumesBySeries, TriggerScan, GetScanStatus
+  - +Volume, ScanStatus types
+- **backend/internal/handlers/handlers.go**: Implementados UpdateLibrary, DeleteLibrary, GetSeriesByID, ScanLibrary, GetScanStatus
+- **backend/cmd/api/main.go**: Rutas actualizadas para PATCH/DELETE library/:id, POST library/:id/scan, GET scans/:scanId
+- **backend/internal/workers/scanner.go**:
+  - +SubscribeToScans, handleScanCommand, scanLibraryWithCount, scanSeriesDirectoryWithCount, processComicFileWithCount
+  - +ScanCommand type
+- **backend/cmd/worker/main.go**: Goroutine para SubscribeToScans
+- **frontend/pages/library.vue**: Botones Scan/Edit/Delete con polling
+- **frontend/components/EditLibraryModal.vue**: Modal para editar biblioteca (nuevo)
+- **frontend/components/DeleteLibraryModal.vue**: Modal para eliminar biblioteca (nuevo)
+
+### API Endpoints States
+| Método | Ruta | Handler | Estado |
+|--------|------|---------|--------|
+| PATCH | /api/v1/library/:id | UpdateLibrary | ✅ Implementado |
+| DELETE | /api/v1/library/:id | DeleteLibrary | ✅ Implementado |
+| GET | /api/v1/series/:id | GetSeriesByID | ✅ Implementado |
+| POST | /api/v1/library/:id/scan | ScanLibrary | ✅ Implementado |
+| GET | /api/v1/scans/:scanId | GetScanStatus | ✅ Implementado |
+
+### Notas Técnicas
+- Scan polling: Frontend hace polling cada 2s, máximo 30 intentos (60s timeout)
+- Worker SubscribeToScans usa Redis pub/sub channel
+- ON DELETE CASCADE en scan_job.library_id elimina jobs al borrar library

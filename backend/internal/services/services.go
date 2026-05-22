@@ -6,17 +6,30 @@ import (
 	"errors"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Service struct {
 	repo interface {
 		DB() *sql.DB
+		Redis() *redis.Client
+		CreateScanJob(ctx context.Context, libraryID, userID int64) (string, error)
+		GetScanJob(ctx context.Context, scanID string) (status string, chaptersFound int, errorMsg *string, startedAt, completedAt *string, err error)
+		UpdateScanJob(ctx context.Context, scanID, status string, chaptersFound int, errorMsg *string) error
+		UpdateScanJobStarted(ctx context.Context, scanID string) error
+		PublishScanCommand(ctx context.Context, libraryID int64, scanID string) error
 	}
 }
 
 func NewService(repo interface {
 	DB() *sql.DB
+	Redis() *redis.Client
+	CreateScanJob(ctx context.Context, libraryID, userID int64) (string, error)
+	GetScanJob(ctx context.Context, scanID string) (status string, chaptersFound int, errorMsg *string, startedAt, completedAt *string, err error)
+	UpdateScanJob(ctx context.Context, scanID, status string, chaptersFound int, errorMsg *string) error
+	UpdateScanJobStarted(ctx context.Context, scanID string) error
+	PublishScanCommand(ctx context.Context, libraryID int64, scanID string) error
 }) *Service {
 	return &Service{repo: repo}
 }
@@ -263,7 +276,7 @@ func (s *Service) SearchSeries(ctx context.Context, query string) ([]Series, err
 
 func (s *Service) GetStats(ctx context.Context, userID int64) (*Stats, error) {
 	var stats Stats
-	
+
 	s.repo.DB().QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM reading_progress WHERE user_id = $1
 	`, userID).Scan(&stats.TotalChaptersRead)
@@ -273,7 +286,7 @@ func (s *Service) GetStats(ctx context.Context, userID int64) (*Stats, error) {
 	`, userID).Scan(&stats.TotalReadingTime)
 
 	s.repo.DB().QueryRowContext(ctx, `
-		SELECT COUNT(DISTINCT v.series_id) 
+		SELECT COUNT(DISTINCT v.series_id)
 		FROM reading_progress rp
 		JOIN chapter c ON rp.chapter_id = c.id
 		JOIN volume v ON c.volume_id = v.id
@@ -281,6 +294,136 @@ func (s *Service) GetStats(ctx context.Context, userID int64) (*Stats, error) {
 	`, userID).Scan(&stats.TotalSeriesCompleted)
 
 	return &stats, nil
+}
+
+func (s *Service) UpdateLibrary(ctx context.Context, id int64, name, libType, path string, watchEnabled bool, scanInterval int) (*Library, error) {
+	var lib Library
+	err := s.repo.DB().QueryRowContext(ctx, `
+		UPDATE library SET name = $2, type = $3, path = $4, watch_enabled = $5, scan_interval = $6
+		WHERE id = $1
+		RETURNING id, name, type, path, watch_enabled, scan_interval, created_at
+	`, id, name, libType, path, watchEnabled, scanInterval).Scan(
+		&lib.ID, &lib.Name, &lib.Type, &lib.Path, &lib.WatchEnabled, &lib.ScanInterval, &lib.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &lib, nil
+}
+
+func (s *Service) DeleteLibrary(ctx context.Context, id int64) error {
+	_, err := s.repo.DB().ExecContext(ctx, `DELETE FROM library WHERE id = $1`, id)
+	return err
+}
+
+func (s *Service) GetSeriesByID(ctx context.Context, id int64) (*Series, []Volume, []Chapter, error) {
+	var series Series
+	err := s.repo.DB().QueryRowContext(ctx, `
+		SELECT id, library_id, title, sort_title, description, cover, year, status,
+			   publisher, language, age_rating, metadata_source, created_at, updated_at
+		FROM series WHERE id = $1
+	`, id).Scan(
+		&series.ID, &series.LibraryID, &series.Title, &series.SortTitle, &series.Description,
+		&series.Cover, &series.Year, &series.Status, &series.Publisher, &series.Language,
+		&series.AgeRating, &series.MetadataSource, &series.CreatedAt, &series.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, nil, nil
+		}
+		return nil, nil, nil, err
+	}
+
+	volumes, err := s.GetVolumesBySeries(ctx, id)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	chapters, err := s.GetChaptersBySeries(ctx, id)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return &series, volumes, chapters, nil
+}
+
+func (s *Service) GetVolumesBySeries(ctx context.Context, seriesID int64) ([]Volume, error) {
+	rows, err := s.repo.DB().QueryContext(ctx, `
+		SELECT id, series_id, number, title FROM volume WHERE series_id = $1 ORDER BY number
+	`, seriesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var volumes []Volume
+	for rows.Next() {
+		var v Volume
+		if err := rows.Scan(&v.ID, &v.SeriesID, &v.Number, &v.Title); err != nil {
+			return nil, err
+		}
+		volumes = append(volumes, v)
+	}
+	return volumes, nil
+}
+
+func (s *Service) TriggerScan(ctx context.Context, libraryID, userID int64) (string, error) {
+	scanID, err := s.repo.CreateScanJob(ctx, libraryID, userID)
+	if err != nil {
+		return "", err
+	}
+
+	err = s.repo.PublishScanCommand(ctx, libraryID, scanID)
+	if err != nil {
+		return "", err
+	}
+
+	return scanID, nil
+}
+
+func (s *Service) GetScanStatus(ctx context.Context, scanID string) (*ScanStatus, error) {
+	status, chaptersFound, errorMsg, startedAt, completedAt, err := s.repo.GetScanJob(ctx, scanID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	scanStatus := &ScanStatus{
+		ScanID:         scanID,
+		Status:         status,
+		ChaptersFound:  chaptersFound,
+		ErrorMessage:   errorMsg,
+	}
+
+	if startedAt != nil {
+		scanStatus.StartedAt = *startedAt
+	}
+	if completedAt != nil {
+		scanStatus.CompletedAt = *completedAt
+	}
+
+	return scanStatus, nil
+}
+
+type Volume struct {
+	ID       int64   `json:"id"`
+	SeriesID int64   `json:"series_id"`
+	Number   int     `json:"number"`
+	Title    *string `json:"title"`
+}
+
+type ScanStatus struct {
+	ScanID         string  `json:"scan_id"`
+	Status         string  `json:"status"`
+	ChaptersFound  int     `json:"chapters_found"`
+	ErrorMessage  *string `json:"error_message,omitempty"`
+	StartedAt      string  `json:"started_at,omitempty"`
+	CompletedAt    string  `json:"completed_at,omitempty"`
 }
 
 type Library struct {
