@@ -234,3 +234,21 @@ lector-comics/
 - Error de build en Docker: "go.sum not found"
   - Agregado go.sum faltante
   - Creados .dockerignore para evitar que archivos incorrectos se copien al contexto
+
+## v0.2.3 - 2026-05-22
+
+### Fixed
+- Error "checksum mismatch" en go.mod/go.sum
+  - El hash de github.com/golang-jwt/jwt/v5@v5.2.0 era incorrecto
+  - go.sum eliminado - ahora se genera automaticamente con `go mod tidy`
+
+### Modified
+- **Dockerfile** y **Dockerfile.worker** actualizados:
+  - `COPY go.mod go.sum ./` → `COPY go.mod ./` y `RUN go mod tidy`
+  - Ya no depende de go.sum pre-generado
+  - `go mod tidy` genera go.sum correctamente dentro del contenedor
+  - `go mod download` eliminado ya que `go mod tidy` lo incluye
+
+### Files Changed
+- backend/Dockerfile: Removida dependencia de go.sum externo
+- backend/Dockerfile.worker: Removida dependencia de go.sum externo
