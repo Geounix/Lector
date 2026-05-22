@@ -277,3 +277,16 @@ lector-comics/
   - `COPY . .` ahora va ANTES de `go mod tidy && go mod download`
   - El codigo se copia primero, luego se ejecutan los comandos de go
   - Esto permite que `go mod tidy` analice todas las importaciones del proyecto
+
+## v0.2.6 - 2026-05-22
+
+### Fixed
+- Error de compilacion: "ScannerWorker redeclared in this block"
+  - El archivo internal/workers/workers.go contenia stubs duplicados de ScannerWorker, ThumbnailWorker
+  - Los archivos scanner.go y thumbnail.go contenian las mismas definiciones
+  - Go no permite declaraciones duplicadas en el mismo paquete
+
+### Modified
+- **internal/workers/workers.go** eliminado
+  - Solo contenia stubs basicos duplicados
+  - Las implementaciones reales estan en scanner.go y thumbnail.go
