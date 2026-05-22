@@ -354,3 +354,10 @@ lector-comics/
 - **Backend**: Compila exitosamente
 - **Worker**: Compila exitosamente
 - **Frontend**: Corregido package.json
+
+## v0.2.11 - 2026-05-22
+
+### Fixed
+- Error Vue build: "Identifier 'totalPages' has already been declared"
+  - reader.vue: Linea 119 duplicada `const totalPages = ref(1)` eliminada
+  - El archivo tenía la declaracion dos veces (lineas 117 y 119)

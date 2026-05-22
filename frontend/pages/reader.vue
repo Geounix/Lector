@@ -116,8 +116,6 @@ async function fetchChapter() {
 
 const totalPages = ref(1)
 
-const totalPages = ref(1)
-
 async function loadPage(pageIndex: number) {
   loading.value = true
   try {
