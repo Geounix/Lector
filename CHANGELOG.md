@@ -264,3 +264,16 @@ lector-comics/
 - **Dockerfile** y **Dockerfile.worker** actualizados:
   - `RUN go mod tidy` → `RUN go mod tidy && go mod download`
   - Ambos comandos se ejecutan en una sola capa RUN
+
+## v0.2.5 - 2026-05-22
+
+### Fixed
+- Error "missing go.sum entry for module providing package" persiste
+  - El problema era que `go mod tidy` necesita el codigo fuente para saber que paquetes descargar
+  - Sin el codigo copiado, `go mod tidy` no puede agregar entradas a go.sum
+
+### Modified
+- **Dockerfile** y **Dockerfile.worker** reescritos completamente:
+  - `COPY . .` ahora va ANTES de `go mod tidy && go mod download`
+  - El codigo se copia primero, luego se ejecutan los comandos de go
+  - Esto permite que `go mod tidy` analice todas las importaciones del proyecto
