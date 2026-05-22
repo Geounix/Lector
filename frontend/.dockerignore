@@ -1,0 +1,10 @@
+.git
+.gitignore
+README.md
+*.md
+docs/
+scripts/
+tests/
+node_modules/
+.nuxt/
+.output/

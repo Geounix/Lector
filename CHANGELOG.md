@@ -205,3 +205,32 @@ lector-comics/
   1. GET /api/v1/library - lista de bibliotecas
   2. GET /api/v1/series - lista de series
 - Asocia cada serie con su biblioteca对应的library.id
+
+## v0.2.2 - 2026-05-22
+
+### Added
+- Archivos go.mod y go.sum faltantes para el backend Go
+  - Dependencias completas incluyendo fiber, jwt, postgres, redis, bcrypt
+  -go.sum con checksums de todas las dependencias
+
+- Archivos .dockerignore para backend y frontend
+  - backend/.dockerignore: excluye .git, .md, docs, scripts, tests
+  - frontend/.dockerignore: excluye .git, .md, docs, scripts, tests, node_modules, .nuxt
+
+- Guia de instalacion completa (instalacion.txt)
+  - Requisitos previos (Docker, Docker Compose)
+  - Estructura del proyecto
+  - Permisos y carpetas
+  - Inicio de servicios (rapido y manual)
+  - Verificacion de instalacion
+  - Acceso a la aplicacion
+  - Primeros pasos
+  - Comandos utiles
+  - Solucion de problemas
+  - Actualizaciones
+  - Desinstalacion
+
+### Fixed
+- Error de build en Docker: "go.sum not found"
+  - Agregado go.sum faltante
+  - Creados .dockerignore para evitar que archivos incorrectos se copien al contexto

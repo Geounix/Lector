@@ -1,0 +1,295 @@
+================================================================================
+                    LECTOR COMICS - GUÍA DE INSTALACIÓN
+================================================================================
+
+SISTEMA REQUERIDO: Linux (preferiblemente Ubuntu/Debian)
+DOCKER: Version 20.10 o superior
+DOCKER COMPOSE: Version 2.0 o superior
+
+================================================================================
+                         1. REQUISITOS PREVIOS
+================================================================================
+
+Instala Docker y Docker Compose si no los tienes:
+
+    # Actualizar sistema
+    sudo apt update && sudo apt upgrade -y
+
+    # Instalar dependencias
+    sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
+
+    # Agregar repositorio de Docker
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    # Instalar Docker
+    sudo apt update
+    sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+    # Agregar tu usuario al grupo docker (evita usar sudo)
+    sudo usermod -aG docker $USER
+
+    # Cerrar sesión y volver a entrar para aplicar cambios
+
+================================================================================
+                         2. ESTRUCTURA DEL PROYECTO
+================================================================================
+
+Descarga o clona el proyecto en tu servidor:
+
+    git clone <repositorio> ~/lector-comics
+    cd ~/lector-comics
+
+Estructura esperada:
+
+    lector-comics/
+    ├── backend/           # API en Go
+    ├── frontend/          # App Vue/Nuxt
+    ├── infra/             # Docker, nginx, postgres
+    ├── library/            # Carpeta para comics
+    ├── metadata/          # Metadata local
+    ├── cache/             # Thumbnail cache
+    ├── backups/           # Backups
+    ├── logs/              # Logs
+    └── docker-compose.yml
+
+================================================================================
+                         3. PERMISOS Y CARPETAS
+================================================================================
+
+Crea las carpetas necesarias y asigna permisos:
+
+    # Crear carpeta para comics (dentro del proyecto)
+    mkdir -p library metadata cache backups logs
+
+    # Asignar permisos (el usuario www-data es para nginx)
+    sudo chown -R $USER:$USER ~/lector-comics
+    chmod -R 755 ~/lector-comics
+
+================================================================================
+                         4. CONFIGURACIÓN DE LA BASE DE DATOS
+================================================================================
+
+El archivo infra/postgres/init.sql se ejecuta automáticamente la primera vez
+que se inicia PostgreSQL. Crea todas las tablas necesarias.
+
+No necesitas hacer nada manual, Docker se encarga de la inicialización.
+
+================================================================================
+                         5. INICIAR LOS SERVICIOS
+================================================================================
+
+Hay dos formas de iniciar el proyecto:
+
+---- MÉTODO RÁPIDO (usando el script) ----
+
+    cd ~/lector-comics
+    chmod +x scripts/init.sh
+    ./scripts/init.sh
+
+---- MÉTODO MANUAL ----
+
+    # 1. Iniciar solo PostgreSQL y Redis primero
+    docker compose up -d postgres redis
+
+    # 2. Esperar a que PostgreSQL esté listo (aprox. 10-15 segundos)
+    echo "Esperando a PostgreSQL..."
+    sleep 10
+
+    # 3. Verificar que PostgreSQL está listo
+    docker compose exec -T postgres pg_isready -U lector -d lector
+
+    # 4. Iniciar todos los servicios
+    docker compose up -d
+
+    # 5. Verificar que todo está corriendo
+    docker compose ps
+
+================================================================================
+                         6. VERIFICACIÓN DE LA INSTALACIÓN
+================================================================================
+
+Verifica que todos los servicios están funcionando:
+
+    # Revisar estado de contenedores
+    docker compose ps
+
+    # Verificar API (backend)
+    curl http://localhost:3000/health
+
+    Debería responder:
+    {"status":"healthy","service":"lector-comics-api","version":"0.1.0"}
+
+    # Verificar Redis
+    docker compose exec redis redis-cli ping
+
+    Debería responder: PONG
+
+    # Verificar PostgreSQL
+    docker compose exec postgres psql -U lector -d lector -c "SELECT 1"
+
+    Debería mostrar: ?column? = 1
+
+================================================================================
+                         7. ACCESO A LA APLICACIÓN
+================================================================================
+
+Una vez que todos los servicios estén corriendo:
+
+    # Frontend (interfaz web)
+    Abrir en el navegador: http://localhost:8080
+
+    # API (documentación futura)
+    http://localhost:3000/api/v1
+
+    # Si usas nginx directamente
+    http://localhost:80
+
+================================================================================
+                         8. PRIMEROS PASOS
+================================================================================
+
+1. Abre http://localhost:8080 en tu navegador
+
+2. Regístrate con un usuario, email y contraseña
+
+3. Crea una biblioteca:
+   - Nombre: "Mis Comics" (o el que prefieras)
+   - Tipo: "comics"
+   - Path: "/app/library"
+
+4. Agrega archivos CBZ o ZIP a la carpeta:
+   ~/lector-comics/library/
+
+5. El scanner detectará automáticamente los comics
+   (también puedes presionar "Escanear" en la biblioteca)
+
+Estructura esperada de archivos:
+    library/
+    ├── One Piece/
+    │   ├── One Piece Vol 01.cbz
+    │   ├── One Piece Vol 02.cbz
+    │   └── One Piece Vol 03.cbz
+    └── Naruto/
+        ├── Naruto Vol 01.cbz
+        └── Naruto Vol 02.cbz
+
+================================================================================
+                         9. COMANDOS ÚTILES
+================================================================================
+
+    # Ver logs de un servicio específico
+    docker compose logs -f backend
+    docker compose logs -f postgres
+    docker compose logs -f redis
+
+    # Ver todos los logs
+    docker compose logs -f
+
+    # Reiniciar un servicio específico
+    docker compose restart backend
+
+    # Reiniciar todos los servicios
+    docker compose restart
+
+    # Detener todos los servicios
+    docker compose down
+
+    # Detener y eliminar volúmenes (LIMPIA TODO)
+    docker compose down -v
+
+    # Reconstruir imágenes (después de actualizar código)
+    docker compose build --no-cache
+    docker compose up -d
+
+    # Escanear biblioteca manualmente (via API)
+    curl -X POST http://localhost:3000/api/v1/series/scan \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer <tu_token>"
+
+================================================================================
+                         10. SOLUCIÓN DE PROBLEMAS
+================================================================================
+
+PROBLEMA: PostgreSQL no inicia
+SOLUCIÓN:
+    docker compose logs postgres
+    # Revisar si el puerto 5432 está ocupado
+    sudo lsof -i :5432
+
+PROBLEMA: Backend no conecta a PostgreSQL
+SOLUCIÓN:
+    # Verificar que PostgreSQL esté corriendo
+    docker compose ps postgres
+    # Ver logs del backend
+    docker compose logs backend
+
+PROBLEMA: Frontend no carga
+SOLUCIÓN:
+    # Verificar que nginx está corriendo
+    docker compose ps nginx
+    # Ver logs
+    docker compose logs frontend
+
+PROBLEMA: No puedo acceder a http://localhost:8080
+SOLUCIÓN:
+    # Verificar puertos
+    sudo netstat -tlnp | grep -E '8080|3000|80'
+
+PROBLEMA: "permiso denegado" al crear archivos
+SOLUCIÓN:
+    # Cambiar permisos de la carpeta del proyecto
+    sudo chown -R $USER:$USER ~/lector-comics
+    chmod -R 755 ~/lector-comics
+
+================================================================================
+                         11. ACTUALIZACIONES
+================================================================================
+
+Para actualizar a una nueva versión:
+
+    # 1. Detener servicios
+    docker compose down
+
+    # 2. Hacer backup de datos (importante!)
+    docker compose run -v $(pwd)/backup:/backup postgres \
+      pg_dump -U lector lector > backup/lector_$(date +%Y%m%d).sql
+
+    # 3. Actualizar código
+    git pull
+
+    # 4. Reconstruir imágenes
+    docker compose build
+
+    # 5. Iniciar servicios
+    docker compose up -d
+
+================================================================================
+                         12. DESINSTALACIÓN
+================================================================================
+
+Para eliminar completamente el proyecto:
+
+    # 1. Detener servicios
+    docker compose down -v
+
+    # 2. Eliminar imágenes
+    docker compose rm -f
+
+    # 3. Eliminar carpeta del proyecto
+    rm -rf ~/lector-comics
+
+================================================================================
+                              NOTAS
+================================================================================
+
+- Los datos de PostgreSQL y Redis se guardan en volúmenes Docker
+- Para hacer backup manualmente, usa docker compose run con pg_dump
+- Los archivos de comics van en la carpeta "library/" dentro del proyecto
+- Los thumbnails se cachean en "cache/"
+- Los logs se guardan en "logs/"
+
+================================================================================
+                          FIN DEL DOCUMENTO
+================================================================================
