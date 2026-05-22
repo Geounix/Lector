@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "nuxt": "^3.10.0",
-    "@nuxtjs/pinia": "^2.0.0",
     "@pinia/nuxt": "^0.5.1"
   },
   "devDependencies": {

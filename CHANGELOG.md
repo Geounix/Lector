@@ -341,3 +341,16 @@ lector-comics/
 - internal/workers/thumbnail.go - Thumbnail worker (sin errores)
 - internal/workers/cleanup.go - Cleanup worker (sin errores)
 - internal/services/scanner_service.go - Scanner service (sin errores)
+
+## v0.2.10 - 2026-05-22
+
+### Fixed
+- Error npm install: "404 Not Found @nuxtjs/pinia"
+  - Paquete incorrecto `@nuxtjs/pinia` eliminado
+  - Paquete correcto `@pinia/nuxt` ya estaba presente
+  - Removida dependencia duplicada en frontend/package.json
+
+### Build Status
+- **Backend**: Compila exitosamente
+- **Worker**: Compila exitosamente
+- **Frontend**: Corregido package.json
