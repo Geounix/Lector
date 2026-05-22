@@ -304,8 +304,8 @@ func (h *Handler) GetPage(c *fiber.Ctx) error {
 
 func (h *Handler) UpdateProgress(c *fiber.Ctx) error {
 	type req struct {
-		ChapterID  int     `json:"chapter_id"`
-		Page       int     `json:"page"`
+		ChapterID  int64  `json:"chapter_id"`
+		Page       int    `json:"page"`
 		Percentage float64 `json:"percentage"`
 	}
 
@@ -319,7 +319,7 @@ func (h *Handler) UpdateProgress(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(int64)
 	ctx := context.Background()
 
-	err := h.svc.UpsertReadingProgress(ctx, userID, int64(body.ChapterID), body.Page, body.Percentage)
+	err := h.svc.UpsertReadingProgress(ctx, userID, body.ChapterID, body.Page, body.Percentage)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update progress",

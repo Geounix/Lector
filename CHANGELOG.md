@@ -312,3 +312,32 @@ lector-comics/
   - El archivo usaba `*Repository` sin importar el paquete repository
   - Agregado import de `github.com/lector-comics/lector/internal/repository`
   - Cambiado `*Repository` por `*repository.Repository` en ScannerService y seriesWalker
+
+## v0.2.9 - 2026-05-22
+
+### Fixed
+- Error de tipos en UpsertReadingProgress
+  - services.go: `userID, chapterID int` -> `userID, chapterID int64`
+  - handlers.go: `ChapterID int` -> `ChapterID int64`
+  - handlers.go: Removido cast innecesario `int64(body.ChapterID)`
+
+### Analisis Completo del Codigo Backend
+- Revisados todos los archivos Go del backend
+- Verificados tipos de parametros en handlers y services
+- Confirmado que no hay mas errores de tipos
+
+### Archivos Analizados
+- cmd/api/main.go - API main (sin errores)
+- cmd/worker/main.go - Worker main (sin errores)
+- internal/config/config.go - Config (sin errores)
+- internal/handlers/handlers.go - Handlers (corregido UpsertReadingProgress)
+- internal/services/services.go - Services (corregido UpsertReadingProgress)
+- internal/repository/repository.go - Repository (sin errores)
+- internal/middleware/jwt.go - JWT middleware (sin errores)
+- internal/scanner/scanner.go - Scanner (sin errores)
+- internal/reader/reader.go - Reader (sin errores)
+- internal/cache/thumbnail.go - Thumbnail cache (sin errores)
+- internal/workers/scanner.go - Scanner worker (sin errores)
+- internal/workers/thumbnail.go - Thumbnail worker (sin errores)
+- internal/workers/cleanup.go - Cleanup worker (sin errores)
+- internal/services/scanner_service.go - Scanner service (sin errores)

@@ -224,7 +224,7 @@ func (s *Service) GetReadingProgress(ctx context.Context, userID, chapterID int6
 	return &rp, nil
 }
 
-func (s *Service) UpsertReadingProgress(ctx context.Context, userID, chapterID, page int, percentage float64) error {
+func (s *Service) UpsertReadingProgress(ctx context.Context, userID, chapterID int64, page int, percentage float64) error {
 	_, err := s.repo.DB().ExecContext(ctx, `
 		INSERT INTO reading_progress (user_id, chapter_id, page, percentage, last_read)
 		VALUES ($1, $2, $3, $4, NOW())
