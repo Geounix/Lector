@@ -252,3 +252,15 @@ lector-comics/
 ### Files Changed
 - backend/Dockerfile: Removida dependencia de go.sum externo
 - backend/Dockerfile.worker: Removida dependencia de go.sum externo
+
+## v0.2.4 - 2026-05-22
+
+### Fixed
+- Error "missing go.sum entry for module providing package"
+  - `go mod tidy` solo actualiza go.sum pero no descarga los módulos
+  - Agregado `go mod download` después de `go mod tidy`
+
+### Modified
+- **Dockerfile** y **Dockerfile.worker** actualizados:
+  - `RUN go mod tidy` → `RUN go mod tidy && go mod download`
+  - Ambos comandos se ejecutan en una sola capa RUN
