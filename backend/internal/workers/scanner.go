@@ -118,7 +118,7 @@ func (w *ScannerWorker) handleScanCommand(payload string) {
 	if err := scanFunc(); err != nil {
 		errMsgStr := err.Error()
 		errMsg = &errMsgStr
-		w.repo.UpdateScanJob(w.scanCtx, cmd.ScanID, "failed", 0, &errMsgStr)
+		w.repo.UpdateScanJob(w.scanCtx, cmd.ScanID, "failed", 0, errMsg)
 		log.Printf("Scanner: scan %s failed: %v", cmd.ScanID, err)
 		return
 	}

@@ -466,3 +466,8 @@ Para produccion futura: agregar build step y servir archivos estaticos
 - Scan polling: Frontend hace polling cada 2s, máximo 30 intentos (60s timeout)
 - Worker SubscribeToScans usa Redis pub/sub channel
 - ON DELETE CASCADE en scan_job.library_id elimina jobs al borrar library
+
+### Fixed
+- Error compilación Go: "errMsg declared and not used"
+  - scanner.go:121 - Cambiado `&errMsgStr` por `errMsg` en UpdateScanJob call
+  - El puntero a variable local estaba siendo usado directamente en lugar de la variable declarada
