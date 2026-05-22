@@ -379,3 +379,32 @@ lector-comics/
 2. Ejecutar: docker compose build --no-cache
 3. Ejecutar: docker compose up -d
 4. Acceder a http://localhost:8080
+
+## v0.2.13 - 2026-05-22
+
+### Fixed
+- Error runtime: "SSL is not enabled on the server"
+  - DATABASE_URL en backend y worker ahora incluye `?sslmode=disable`
+  - Afecta tanto backend como worker en docker-compose.yml
+
+- Error runtime: "Cannot find module '/app/.output/server/index.mjs'"
+  - docker-compose.yml: Cambiado frontend de build a modo dev
+  - frontend ahora usa `npm run dev` en lugar de build statico
+  - Removidos volumenes que interferian con el build
+
+### Changed Files
+- **docker-compose.yml**:
+  - DATABASE_URL: `postgres://...:5432/lector` -> `postgres://...:5432/lector?sslmode=disable`
+  - frontend: Agregado `command: npm run dev` y variables HOST/PORT
+  - frontend: Removidos volumenes `./frontend:/app` y `/app/node_modules`
+
+### Estado Runtime
+- **Backend**: Corregido para conectar a PostgreSQL sin SSL
+- **Worker**: Corregido para conectar a PostgreSQL sin SSL
+- **Frontend**: Corregido para correr en modo dev (npm run dev)
+- **nginx**: Configuracion upstream correcta (frontend:3000)
+
+### Nota Importante
+El frontend NO hace build en Docker, corre en modo dev con `npm run dev`
+Esto permite desarrollo rapido pero NO es recomendado para produccion
+Para produccion futura: agregar build step y servir archivos estaticos

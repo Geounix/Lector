@@ -41,7 +41,7 @@ services:
       dockerfile: Dockerfile
     container_name: lector-backend
     environment:
-      DATABASE_URL: postgres://lector:lector_secret@postgres:5432/lector
+      DATABASE_URL: postgres://lector:lector_secret@postgres:5432/lector?sslmode=disable
       REDIS_URL: redis://redis:6379
       JWT_SECRET: change_this_in_production
       PORT: 3000
@@ -66,7 +66,7 @@ services:
       dockerfile: Dockerfile.worker
     container_name: lector-worker
     environment:
-      DATABASE_URL: postgres://lector:lector_secret@postgres:5432/lector
+      DATABASE_URL: postgres://lector:lector_secret@postgres:5432/lector?sslmode=disable
       REDIS_URL: redis://redis:6379
     volumes:
       - ./library:/app/library
@@ -86,11 +86,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: lector-frontend
+    command: npm run dev
     environment:
       API_URL: http://backend:3000
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      HOST: 0.0.0.0
+      PORT: 3000
     ports:
       - "8080:3000"
     depends_on:
