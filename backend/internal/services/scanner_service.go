@@ -14,13 +14,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lector-comics/lector/internal/repository"
 )
 
 type ScannerService struct {
-	repo *Repository
+	repo *repository.Repository
 }
 
-func NewScannerService(repo *Repository) *ScannerService {
+func NewScannerService(repo *repository.Repository) *ScannerService {
 	return &ScannerService{repo: repo}
 }
 
@@ -80,7 +81,7 @@ func (s *ScannerService) scanDirectory(ctx context.Context, lib *LibraryInfo) er
 }
 
 type seriesWalker struct {
-	repo     *Repository
+	repo     *repository.Repository
 	seriesID int64
 }
 

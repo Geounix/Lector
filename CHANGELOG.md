@@ -304,3 +304,11 @@ lector-comics/
   - cmd/worker/main.go referenciaba NewCleanupWorker
   - workers.go eliminado no contenia esta definicion
   - Creado cleanup.go con la implementacion faltante
+
+## v0.2.8 - 2026-05-22
+
+### Fixed
+- Error "undefined: Repository" en scanner_service.go
+  - El archivo usaba `*Repository` sin importar el paquete repository
+  - Agregado import de `github.com/lector-comics/lector/internal/repository`
+  - Cambiado `*Repository` por `*repository.Repository` en ScannerService y seriesWalker
