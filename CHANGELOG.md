@@ -290,3 +290,17 @@ lector-comics/
 - **internal/workers/workers.go** eliminado
   - Solo contenia stubs basicos duplicados
   - Las implementaciones reales estan en scanner.go y thumbnail.go
+
+## v0.2.7 - 2026-05-22
+
+### Added
+- **internal/workers/cleanup.go** creado
+  - Implementacion stub de CleanupWorker
+  - NewCleanupWorker, Start, Stop, cleanup
+  - Cleanup automatico cada hora
+
+### Fixed
+- Error "undefined: workers.NewCleanupWorker"
+  - cmd/worker/main.go referenciaba NewCleanupWorker
+  - workers.go eliminado no contenia esta definicion
+  - Creado cleanup.go con la implementacion faltante
