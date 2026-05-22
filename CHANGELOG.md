@@ -361,3 +361,21 @@ lector-comics/
 - Error Vue build: "Identifier 'totalPages' has already been declared"
   - reader.vue: Linea 119 duplicada `const totalPages = ref(1)` eliminada
   - El archivo tenía la declaracion dos veces (lineas 117 y 119)
+
+## v0.2.12 - 2026-05-22
+
+### Fixed
+- Archivos corregidos para build limpio
+- frontend/package.json: Removido paquete inexistente @nuxtjs/pinia
+- frontend/pages/reader.vue: Corregido completamente con una sola declaracion de totalPages
+
+### Estado del Proyecto
+- Todos los archivos Go compilan correctamente
+- Todos los archivos Vue/Nuxt corregidos
+- Proyecto listo para deployment limpio
+
+### Instrucciones de Deployment
+1. Copiar proyecto completo al servidor
+2. Ejecutar: docker compose build --no-cache
+3. Ejecutar: docker compose up -d
+4. Acceder a http://localhost:8080

@@ -22,7 +22,6 @@
           :src="currentPageSrc"
           :alt="`Página ${currentPage + 1}`"
           class="page-image"
-          @load="onPageLoad"
         />
       </div>
     </div>
@@ -59,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -71,6 +70,7 @@ const loading = ref(true)
 const error = ref('')
 const chapterTitle = ref('')
 const currentPage = ref(0)
+const totalPages = ref(1)
 const currentPageSrc = ref('')
 const isFullscreen = ref(false)
 
@@ -113,8 +113,6 @@ async function fetchChapter() {
     loading.value = false
   }
 }
-
-const totalPages = ref(1)
 
 async function loadPage(pageIndex: number) {
   loading.value = true
