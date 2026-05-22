@@ -204,8 +204,12 @@ Estructura esperada de archivos:
     docker compose up -d
 
     # Escanear biblioteca manualmente (via API)
-    curl -X POST http://localhost:3000/api/v1/series/scan \
+    curl -X POST http://localhost/api/v1/library/{id}/scan \
       -H "Content-Type: application/json" \
+      -H "Authorization: Bearer <tu_token>"
+
+    # Consultar estado de scan
+    curl http://localhost/api/v1/scans/{scan_id} \
       -H "Authorization: Bearer <tu_token>"
 
 ================================================================================

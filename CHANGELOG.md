@@ -471,3 +471,20 @@ Para produccion futura: agregar build step y servir archivos estaticos
 - Error compilación Go: "errMsg declared and not used"
   - scanner.go:121 - Cambiado `&errMsgStr` por `errMsg` en UpdateScanJob call
   - El puntero a variable local estaba siendo usado directamente en lugar de la variable declarada
+
+---
+
+## DOCUMENTACIÓN COMPLETA
+
+Ver archivo **`PROJECT_INFO.md`** para:
+- Arquitectura completa con diagrama de servicios
+- Estructura del proyecto
+- Lista detallada de todos los API endpoints
+- Variables de entorno
+- Schema de base de datos
+- Estado del proyecto (implementado vs pendiente)
+- Guía de deployment
+- Limitaciones conocidas
+- Flujo de scan asíncrono
+- Configuración de red de ejemplo
+- Resumen del changelog
