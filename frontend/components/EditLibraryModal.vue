@@ -44,6 +44,19 @@
           </label>
         </div>
 
+        <div class="form-group">
+          <label for="scanInterval">Intervalo de escaneo (segundos)</label>
+          <input
+            id="scanInterval"
+            v-model.number="scanInterval"
+            type="number"
+            class="input"
+            min="60"
+            step="60"
+            placeholder="3600"
+          />
+        </div>
+
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" @click="$emit('close')">
             Cancelar
@@ -72,6 +85,7 @@ const name = ref('')
 const type = ref('comics')
 const path = ref('')
 const watchEnabled = ref(true)
+const scanInterval = ref(3600)
 const loading = ref(false)
 const error = ref('')
 
@@ -81,6 +95,7 @@ onMounted(() => {
     type.value = props.library.type || 'comics'
     path.value = props.library.path || ''
     watchEnabled.value = props.library.watch_enabled !== false
+    scanInterval.value = props.library.scan_interval || 3600
   }
 })
 
@@ -101,7 +116,7 @@ async function handleSubmit() {
         type: type.value,
         path: path.value,
         watch_enabled: watchEnabled.value,
-        scan_interval: 3600
+        scan_interval: scanInterval.value
       })
     })
 

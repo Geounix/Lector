@@ -1,20 +1,17 @@
 package services
 
 import (
-	"archive/zip"
 	"context"
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/lector-comics/lector/internal/repository"
+	"github.com/lector-comics/lector/internal/scanner"
 )
 
 type ScannerService struct {
@@ -105,8 +102,8 @@ func (w *seriesWalker) walk(dir string) {
 func (w *seriesWalker) processFile(filePath string) {
 	filename := filepath.Base(filePath)
 	hash := hashFile(filePath)
-	pageCount := countZipPages(filePath)
-	volumeNum := extractVolumeNumber(filename)
+	pageCount := scanner.ExtractPageCount(filePath)
+	volumeNum := scanner.ExtractVolumeNumber(filename)
 
 	volumeID, _ := w.getOrCreateVolume(volumeNum)
 
@@ -114,7 +111,7 @@ func (w *seriesWalker) processFile(filePath string) {
 		INSERT INTO chapter (volume_id, title, file_path, hash, page_count, size)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (hash) DO NOTHING
-	`, volumeID, filename, filePath, hash, pageCount, getFileSize(filePath))
+	`, volumeID, filename, filePath, hash, pageCount, scanner.GetFileSize(filePath))
 }
 
 func (w *seriesWalker) getOrCreateVolume(number int) (int64, error) {
@@ -151,16 +148,8 @@ func (s *ScannerService) getOrCreateSeries(ctx context.Context, libraryID int64,
 		INSERT INTO series (library_id, title, sort_title)
 		VALUES ($1, $2, $3)
 		RETURNING id
-	`, libraryID, title, generateSortTitle(title)).Scan(&newID)
+	`, libraryID, title, scanner.GenerateSortTitle(title)).Scan(&newID)
 	return newID, err
-}
-
-func generateSortTitle(title string) string {
-	sortTitle := strings.ToLower(title)
-	sortTitle = strings.ReplaceAll(sortTitle, "the ", "")
-	sortTitle = strings.ReplaceAll(sortTitle, "a ", "")
-	sortTitle = strings.ReplaceAll(sortTitle, "an ", "")
-	return strings.TrimSpace(sortTitle)
 }
 
 func hashFile(path string) string {
@@ -172,51 +161,6 @@ func hashFile(path string) string {
 	h := sha256.New()
 	h.Write(data[:1024])
 	return fmt.Sprintf("%x", h.Sum(nil))
-}
-
-func countZipPages(filePath string) int {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	if ext != ".cbz" && ext != ".zip" {
-		return 0
-	}
-
-	reader, err := zip.OpenReader(filePath)
-	if err != nil {
-		return 0
-	}
-	defer reader.Close()
-
-	count := 0
-	for _, file := range reader.File {
-		if isImageFile(file.Name) {
-			count++
-		}
-	}
-	return count
-}
-
-func extractVolumeNumber(filename string) int {
-	re := regexp.MustCompile(`(?i)vol\.?\s*(\d+)`)
-	matches := re.FindStringSubmatch(filename)
-	if len(matches) > 1 {
-		if v, err := strconv.Atoi(matches[1]); err == nil {
-			return v
-		}
-	}
-	return 1
-}
-
-func getFileSize(path string) int64 {
-	info, err := os.Stat(path)
-	if err != nil {
-		return 0
-	}
-	return info.Size()
-}
-
-func isImageFile(name string) bool {
-	ext := strings.ToLower(filepath.Ext(name))
-	return ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" || ext == ".gif"
 }
 
 func (s *ScannerService) ScanAllLibraries(ctx context.Context) error {
@@ -239,5 +183,4 @@ func (s *ScannerService) ScanAllLibraries(ctx context.Context) error {
 	return nil
 }
 
-var _ = time.Time{}
 var _ = uuid.New

@@ -188,9 +188,28 @@ async function fetchLibrary() {
 function handleSearch() {
 }
 
-function openSeries(series: any) {
-  if (series.chapters && series.chapters.length > 0) {
-    router.push(`/reader/${series.chapters[0].id}`)
+async function openSeries(series: any) {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`/api/v1/series/${series.id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+
+    if (!response.ok) {
+      throw new Error('Error al cargar serie')
+    }
+
+    const seriesData = await response.json()
+    
+    if (seriesData.volumes && seriesData.volumes.length > 0) {
+      const firstVolume = seriesData.volumes[0]
+      if (firstVolume.chapters && firstVolume.chapters.length > 0) {
+        router.push(`/reader/${firstVolume.chapters[0].id}`)
+      }
+    }
+  } catch (err) {
+    console.error('Error opening series:', err)
+    alert('No se pudo abrir la serie')
   }
 }
 

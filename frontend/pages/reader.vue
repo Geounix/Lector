@@ -18,7 +18,9 @@
       <div v-if="loading" class="loading">Cargando...</div>
       <div v-else-if="error" class="error">{{ error }}</div>
       <div v-else class="page-viewer">
+        <div v-if="pageLoading" class="loading">Cargando página...</div>
         <img
+          v-show="!pageLoading"
           :src="currentPageSrc"
           :alt="`Página ${currentPage + 1}`"
           class="page-image"
@@ -67,6 +69,7 @@ const router = useRouter()
 const chapterId = route.params.id as string
 
 const loading = ref(true)
+const pageLoading = ref(false)
 const error = ref('')
 const chapterTitle = ref('')
 const currentPage = ref(0)
@@ -115,7 +118,7 @@ async function fetchChapter() {
 }
 
 async function loadPage(pageIndex: number) {
-  loading.value = true
+  pageLoading.value = true
   try {
     const token = localStorage.getItem('token')
     const response = await fetch(
@@ -137,7 +140,7 @@ async function loadPage(pageIndex: number) {
   } catch (err) {
     console.error('Error loading page:', err)
   } finally {
-    loading.value = false
+    pageLoading.value = false
   }
 }
 
@@ -157,7 +160,7 @@ function nextPage() {
   }
 }
 
-async function saveProgress() {
+async async function saveProgress() {
   try {
     const token = localStorage.getItem('token')
     await fetch('/api/v1/reader/progress', {

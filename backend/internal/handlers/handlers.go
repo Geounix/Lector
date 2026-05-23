@@ -301,11 +301,12 @@ func (h *Handler) GetSeriesByID(c *fiber.Ctx) error {
 
 	var volumesJSON []fiber.Map
 	for _, v := range volumes {
+		chaptersForVolume := volumesMap[v.ID]
 		vJSON := fiber.Map{
 			"id":       v.ID,
 			"number":   v.Number,
 			"title":    v.Title,
-			"chapters": volumesMap[v.ID],
+			"chapters": chaptersForVolume,
 		}
 		volumesJSON = append(volumesJSON, vJSON)
 	}

@@ -1,6 +1,6 @@
 # Lector Comics - Project Info
 
-Version: 0.2.14
+Version: 0.2.15
 Last Updated: 2026-05-22
 
 ---

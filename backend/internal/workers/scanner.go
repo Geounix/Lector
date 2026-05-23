@@ -202,7 +202,7 @@ func (w *ScannerWorker) scanSeriesDirectoryWithCount(ctx context.Context, librar
 func (w *ScannerWorker) processComicFileWithCount(ctx context.Context, seriesID int64, filePath string) bool {
 	info := w.parser.ParseFilename(filePath)
 
-	hash, err := scanner.CalculateHash(filePath)
+	hash, err := scanner.CalculateHashPartial(filePath)
 	if err != nil {
 		log.Printf("Scanner: failed to calculate hash for %s: %v", filePath, err)
 		return false
@@ -225,7 +225,7 @@ func (w *ScannerWorker) processComicFileWithCount(ctx context.Context, seriesID 
 		INSERT INTO chapter (volume_id, title, file_path, hash, page_count, size)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (hash) DO NOTHING
-	`, volumeID, info.Title, filePath, hash, pageCount, getFileSize(filePath))
+	`, volumeID, info.Title, filePath, hash, pageCount, scanner.GetFileSize(filePath))
 
 	if err != nil {
 		log.Printf("Scanner: failed to insert chapter: %v", err)
@@ -341,7 +341,7 @@ func (w *ScannerWorker) scanSeriesDirectory(ctx context.Context, libraryID int64
 func (w *ScannerWorker) processComicFile(ctx context.Context, seriesID int64, filePath string) {
 	info := w.parser.ParseFilename(filePath)
 	
-	hash, err := scanner.CalculateHash(filePath)
+	hash, err := scanner.CalculateHashPartial(filePath)
 	if err != nil {
 		log.Printf("Scanner: failed to calculate hash for %s: %v", filePath, err)
 		return
@@ -364,7 +364,7 @@ func (w *ScannerWorker) processComicFile(ctx context.Context, seriesID int64, fi
 		INSERT INTO chapter (volume_id, title, file_path, hash, page_count, size)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (hash) DO NOTHING
-	`, volumeID, info.Title, filePath, hash, pageCount, getFileSize(filePath))
+	`, volumeID, info.Title, filePath, hash, pageCount, scanner.GetFileSize(filePath))
 
 	if err != nil {
 		log.Printf("Scanner: failed to insert chapter: %v", err)
@@ -390,7 +390,7 @@ func (w *ScannerWorker) getOrCreateSeries(ctx context.Context, libraryID int64, 
 		INSERT INTO series (library_id, title, sort_title)
 		VALUES ($1, $2, $3)
 		RETURNING id
-	`, libraryID, title, generateSortTitle(title)).Scan(&newID)
+	`, libraryID, title, scanner.GenerateSortTitle(title)).Scan(&newID)
 
 	return newID, err
 }
@@ -417,23 +417,6 @@ func (w *ScannerWorker) getOrCreateVolume(ctx context.Context, seriesID int64, n
 	`, seriesID, number).Scan(&newID)
 
 	return newID, err
-}
-
-func generateSortTitle(title string) string {
-	sortTitle := strings.ToLower(title)
-	sortTitle = strings.ReplaceAll(sortTitle, "the ", "")
-	sortTitle = strings.ReplaceAll(sortTitle, "a ", "")
-	sortTitle = strings.ReplaceAll(sortTitle, "an ", "")
-	sortTitle = strings.TrimSpace(sortTitle)
-	return sortTitle
-}
-
-func getFileSize(path string) int64 {
-	info, err := os.Stat(path)
-	if err != nil {
-		return 0
-	}
-	return info.Size()
 }
 
 type LibraryInfo struct {
